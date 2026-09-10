@@ -1,0 +1,47 @@
+services:
+  quarkus-app:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: tarefas-api
+    restart: unless-stopped
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: ${POSTGRES_JDBC_CONNECTION}
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION: none
+    ports:
+      - "${QUARKUS_PORT}:8080"
+    networks:
+      - tarefas-net
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: tarefas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d tarefas_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tarefas-net
+
+volumes:
+  postgres_data:
+
+networks:
+  tarefas-net:
+    driver: bridge
